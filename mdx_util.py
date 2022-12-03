@@ -20,7 +20,7 @@ def get_definition_mdx(word, builder):
     """根据关键字得到MDX词典的解释"""
     content = builder.mdx_lookup(word)
     if len(content) < 1:
-        return "It seems that there is no such word"
+        return ['It seems that there is no such word'.encode('utf-8')]
     pattern = re.compile(r"@@@LINK=([\w\s]*)")
     rst = pattern.match(content[0])
     if rst is not None:
