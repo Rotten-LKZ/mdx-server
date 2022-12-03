@@ -87,4 +87,11 @@ if __name__ == '__main__':
     else:
         builder = IndexBuilder(config['mdx'])
         t = threading.Thread(target=loop, args=())
+        t.daemon = True
         t.start()
+        try:
+            while True:
+                pass
+        except KeyboardInterrupt:
+            print('Stopped')
+            exit(0)
