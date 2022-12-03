@@ -6,7 +6,6 @@ import re
 import os
 import sys
 
-
 if sys.version_info < (3, 0, 0):
     import Tkinter as tk
     import tkFileDialog as filedialog
@@ -19,10 +18,7 @@ from file_util import *
 from mdx_util import *
 from mdict_query import IndexBuilder
 
-"""
-browser URL:
-http://localhost:8000/test
-"""
+config = {}
 
 content_type_map = {
     'html': 'text/html; charset=utf-8',
@@ -39,6 +35,7 @@ content_type_map = {
     'ogg': 'audio/ogg',
     'eot': 'font/opentype',
     'svg': 'text/xml',
+    'ini': 'text/plain',
     'ttf': 'application/x-font-ttf',
     'woff': 'application/x-font-woff',
     'woff2': 'application/font-woff2',
@@ -51,40 +48,13 @@ try:
 except Exception:
     base_path = os.path.abspath(".")
         
-resource_path = os.path.join(base_path, 'mdx')
-print("resouce path : " + resource_path)
 builder = None
-
-
-def get_url_map():
-    result = {}
-    files = []
-
-    # resource_path = '/mdx'
-    file_util_get_files(resource_path, files)
-    for p in files:
-        if file_util_get_ext(p) in content_type_map:
-            p = p.replace('\\', '/')
-            result[re.match('.*?/mdx(/.*)', p).groups()[0]] = p
-    return result
-
 
 def application(environ, start_response):
     path_info = environ['PATH_INFO'].encode('iso8859-1').decode('utf-8')
     print(path_info)
-    m = re.match('/(.*)', path_info)
-    word = ''
-    if m is not None:
-        word = m.groups()[0]
 
-    url_map = get_url_map()
-
-    if path_info in url_map:
-        url_file = url_map[path_info]
-        content_type = content_type_map.get(file_util_get_ext(url_file), 'text/html; charset=utf-8')
-        start_response('200 OK', [('Content-Type', content_type)])
-        return [file_util_read_byte(url_file)]
-    elif file_util_get_ext(path_info) in content_type_map:
+    if file_util_get_ext(path_info) in content_type_map:
         content_type = content_type_map.get(file_util_get_ext(path_info), 'text/html; charset=utf-8')
         start_response('200 OK', [('Content-Type', content_type)])
         return get_definition_mdd(path_info, builder)
@@ -93,34 +63,28 @@ def application(environ, start_response):
         return get_definition_mdx(path_info[1:], builder)
 
 
-    start_response('200 OK', [('Content-Type', 'text/html; charset=utf-8')])
-    return [b'<h1>WSGIServer ok!</h1>']
-
-
 # 新线程执行的代码
 def loop():
-    # 创建一个服务器，IP地址为空，端口是8000，处理函数是application:
-    httpd = make_server('', 8000, application)
-    print("Serving HTTP on port 8000...")
-    # 开始监听HTTP请求:
+    httpd = make_server('', config['port'], application)
+    print(f"Serving HTTP on port {config['port']}...")
     httpd.serve_forever()
 
 
 if __name__ == '__main__':
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("filename", nargs='?', help="mdx file name")
-    args = parser.parse_args()
+    with open('./config', 'r', encoding='utf-8') as f:
+        for line in f:
+            conf = line.strip()
+            if conf != '':
+                args = conf.split('=')
+                if args[0] == 'port':
+                    config['port'] = int(args[1])
+                else:
+                    conf_name = args.pop(0)
+                    config[conf_name] = '='.join(args)
 
-    # use GUI to select file, default to extract
-    if not args.filename:
-        root = tk.Tk()
-        root.withdraw()
-        args.filename = filedialog.askopenfilename(parent=root)
-
-    if not os.path.exists(args.filename):
+    if not os.path.exists(config['mdx']):
         print("Please specify a valid MDX/MDD file")
     else:
-        builder = IndexBuilder(args.filename)
+        builder = IndexBuilder(config['mdx'])
         t = threading.Thread(target=loop, args=())
         t.start()

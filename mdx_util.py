@@ -5,15 +5,22 @@ import sys
 import re
 from file_util import *
 
+injection_js = r'''document.querySelectorAll('a').forEach(ele => {
+  ele.onclick = (e) => {
+    const href = ele.getAttribute('href')
+    const audioFormat = /\.(wav|mp3|aac|flac|ogg)$/
+    if (audioFormat.test(href)) {
+      e.preventDefault()
+      new Audio(href).play()
+    }
+  }
+})'''
+
 def get_definition_mdx(word, builder):
     """根据关键字得到MDX词典的解释"""
     content = builder.mdx_lookup(word)
     if len(content) < 1:
-        fp = os.popen('python lemma.py ' + word)
-        word = fp.read().strip()
-        fp.close()
-        print("lemma: " + word)
-        content = builder.mdx_lookup(word)
+        return "It seems that there is no such word"
     pattern = re.compile(r"@@@LINK=([\w\s]*)")
     rst = pattern.match(content[0])
     if rst is not None:
@@ -43,8 +50,9 @@ def get_definition_mdx(word, builder):
         if file_util_is_ext(p, 'html'):
             injection_html += file_util_read_text(p)
 
-    #return [bytes(str_content, encoding='utf-8')]
     output_html = str_content + injection_html
+    output_html = output_html.replace('sound://', '')
+    output_html = output_html + f'<script>{injection_js}</script>'
     return [output_html.encode('utf-8')]
 
 def get_definition_mdd(word, builder):

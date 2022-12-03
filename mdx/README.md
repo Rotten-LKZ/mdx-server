@@ -1,1 +1,0 @@
-MDX and external resource
